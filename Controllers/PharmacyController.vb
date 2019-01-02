@@ -6,7 +6,7 @@ Imports MySql.Data.MySqlClient
 
 Namespace Controllers
     <RoutePrefix("api")>
-    Public Class YourPharmacyController
+    Public Class PharmacyController
         Inherits ApiController
 
         <HttpPost>
