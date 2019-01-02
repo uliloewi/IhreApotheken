@@ -11,8 +11,8 @@ Public Module RouteConfig
 
         routes.MapRoute(
             name:="Default",
-            url:="{controller}/{action}/{kdnr}",
-            defaults:=New With {.controller = "Home", .action = "Index", .kdnr = UrlParameter.Optional}
+            url:="{controller}/{action}/{id}",
+            defaults:=New With {.controller = "Home", .action = "Index", .id = UrlParameter.Optional}
         )
     End Sub
 End Module
