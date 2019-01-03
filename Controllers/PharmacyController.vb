@@ -18,7 +18,7 @@ Namespace Controllers
                 CreateToken(conMain, foa, res)
             Else
                 res.Status = HttpStatusCode.Unauthorized
-                res.Msg = "No Authorization"
+                res.Msg = "Keine Authorisation"
             End If
             Return Request.CreateResponse(res.Status, res)
         End Function
@@ -65,39 +65,41 @@ Namespace Controllers
         End Function
 
 
-        <HttpGet>
+        <HttpPost>
         <Route("PharmacyID")>
-        Public Function GetPharmacyID() As HttpResponseMessage
-            Dim authkey As String = ""
+        Public Function GetPharmacyID(functiontoken As FunctionToken) As HttpResponseMessage
             Dim res As New OperationResult
-            If Request.Headers.Contains("AuthKey") Then
-                authkey = Request.Headers.GetValues("AuthKey").First
-            End If
-            Dim ApoID As Integer
-            Try
-                Using conn As New MySqlConnection(config.conMain)
-                    conn.Open()
-                    Using cmd As New MySqlCommand
-                        cmd.CommandTimeout = config.dbTimeout
-                        cmd.CommandType = CommandType.StoredProcedure
-                        cmd.Connection = conn
-                        cmd.CommandText = "token_isvalid"
-                        cmd.Parameters.AddWithValue("inToken", authkey)
-                        ApoID = cmd.ExecuteScalar
-                        If ApoID = 0 Then
-                            res.Status = HttpStatusCode.Unauthorized
-                            Throw New HttpResponseException(res.Status)
-                        Else
-                            res.Status = HttpStatusCode.OK
-                            res.Result = ApoID
-                        End If
+            If Authentification(Me.Request) Then
+                Dim ApoID As Integer
+                Try
+                    Using conn As New MySqlConnection(config.conMain)
+                        conn.Open()
+                        Using cmd As New MySqlCommand
+                            cmd.CommandTimeout = config.dbTimeout
+                            cmd.CommandType = CommandType.StoredProcedure
+                            cmd.Connection = conn
+                            cmd.CommandText = "token_isvalid"
+                            cmd.Parameters.AddWithValue("inToken", functiontoken.token)
+                            ApoID = cmd.ExecuteScalar
+                            If ApoID = 0 Then
+                                res.Status = HttpStatusCode.NotFound
+                                res.Msg = "Token ist ungültig"
+                                Throw New HttpResponseException(res.Status)
+                            Else
+                                res.Status = HttpStatusCode.OK
+                                res.Result = ApoID
+                            End If
+                        End Using
+                        conn.Close()
                     End Using
-                    conn.Close()
-                End Using
-            Catch ex As Exception
-                res.Msg = ex.Message
-                res.Result = -1
-            End Try
+                Catch ex As Exception
+                    If res.Msg = "" Then res.Msg = ex.Message
+                    res.Result = -1
+                End Try
+            Else
+                res.Status = HttpStatusCode.Unauthorized
+                res.Msg = "Keine Authorisation"
+            End If
             Return Request.CreateResponse(res.Status, res)
         End Function
 
