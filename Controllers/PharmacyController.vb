@@ -103,6 +103,55 @@ Namespace Controllers
             Return Request.CreateResponse(res.Status, res)
         End Function
 
+        <HttpGet>
+        <Route("{apoid}/orderitems")>
+        Public Function GetOrderDetails(apoid As String) As HttpResponseMessage
+            Dim opres As New OperationResult
+            If Authentification(Me.Request) Then
+                Dim res As New List(Of OrderItem)
+                Try
+                    Using conn As New MySqlConnection(conMain)
+                        conn.Open()
+                        Using cmd As New MySqlCommand()
+                            Dim myQuery As String = "SELECT distinct i.*, p.ProductName, o.OrderDate FROM i_orderitem i  
+                    INNER JOIN i_order o on (o.OrderID = i.OrderID) 
+                    INNER JOIN p_product p on (p.ProductID = i.ProductID)
+                    INNER JOIN i_contract c on (c.ContractID = o.ContractID)
+                    INNER JOIN o_organisation g on (c.PartyID = g.PartyID)
+                    where g.OrganisationID =" + apoid
+                            cmd.CommandText = myQuery
+                            cmd.Connection = conn
+                            Dim myReader = cmd.ExecuteReader()
+                            While myReader.Read()
+                                Dim r As New OrderItem
+                                For Each prop In r.GetType.GetProperties
+                                    If Not IsDBNull(myReader(prop.Name)) Then
+                                        If prop.PropertyType Is GetType(String) Then
+                                            prop.SetValue(r, myReader(prop.Name).ToString)
+                                        Else
+                                            prop.SetValue(r, myReader(prop.Name))
+                                        End If
+                                    End If
+                                Next
+                                res.Add(r)
+                            End While
+                        End Using
+                        conn.Close()
+                    End Using
+                    opres.Result = res
+                    opres.Status = HttpStatusCode.OK
+                Catch ex As Exception
+                    opres.Status = HttpStatusCode.InternalServerError
+                    opres.Msg = ex.Message
+                    opres.Result = Nothing
+                End Try
+            Else
+                opres.Status = HttpStatusCode.Unauthorized
+                opres.Msg = "Keine Authorisation"
+            End If
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
         Private Function Authentification(rq As Http.HttpRequestMessage) As Boolean
             If rq.Headers.Contains("Authorization") Then
                 Dim authkey = Request.Headers.GetValues("Authorization").First
