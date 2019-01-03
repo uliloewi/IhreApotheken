@@ -104,7 +104,7 @@ Namespace Controllers
         End Function
 
         <HttpGet>
-        <Route("{apoid}/orderitems")>
+        <Route("pharmacies/{apoid}/orderitems")>
         Public Function GetOrderDetails(apoid As String) As HttpResponseMessage
             Dim opres As New OperationResult
             If Authentification(Me.Request) Then
