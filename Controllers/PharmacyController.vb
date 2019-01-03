@@ -1,4 +1,5 @@
 ﻿Imports System.Net
+Imports System.Net.Http
 Imports System.Web.Http
 Imports System.Web.Http.Cors
 Imports MySql.Data
@@ -11,11 +12,15 @@ Namespace Controllers
 
         <HttpPost>
         <Route("token")>
-        Public Function GetToken(foa As FunctionOfPharmacy) As OperationResult
-            'Dim re As Http.HttpRequestMessage = Me.Request
+        Public Function GetToken(foa As FunctionOfPharmacy) As HttpResponseMessage
             Dim res As New OperationResult
-            CreateToken(conMain, foa, res)
-            Return res
+            If Authentification(Me.Request) Then
+                CreateToken(conMain, foa, res)
+            Else
+                res.Status = HttpStatusCode.Unauthorized
+                res.Msg = "No Authorization"
+            End If
+            Return Request.CreateResponse(res.Status, res)
         End Function
 
         Private Sub CreateToken(connstring As String, re As FunctionOfPharmacy, ByRef res As OperationResult)
@@ -37,13 +42,12 @@ Namespace Controllers
                         cmd.Parameters.AddWithValue("inFoaID", foaID)
                         cmd.Parameters.AddWithValue("inToken", token)
                         cmd.ExecuteNonQuery()
-
-                        res.Status = "success"
+                        res.Status = HttpStatusCode.OK
                         res.Result = token
                         res.Msg = ""
                     Else
-                        res.Status = "error"
-                        res.Msg = "Bitte prüfen Sie Ihre Logindaten"
+                        res.Status = HttpStatusCode.BadRequest
+                        res.Msg = "Apotheke order Funktion ist falsch!"
                     End If
                 End Using
             End Using
@@ -63,10 +67,9 @@ Namespace Controllers
 
         <HttpGet>
         <Route("PharmacyID")>
-        Public Function GetPharmacyID() As OperationResult
+        Public Function GetPharmacyID() As HttpResponseMessage
             Dim authkey As String = ""
             Dim res As New OperationResult
-            res.Status = "success"
             If Request.Headers.Contains("AuthKey") Then
                 authkey = Request.Headers.GetValues("AuthKey").First
             End If
@@ -82,20 +85,40 @@ Namespace Controllers
                         cmd.Parameters.AddWithValue("inToken", authkey)
                         ApoID = cmd.ExecuteScalar
                         If ApoID = 0 Then
-                            Throw New HttpResponseException(HttpStatusCode.Unauthorized)
+                            res.Status = HttpStatusCode.Unauthorized
+                            Throw New HttpResponseException(res.Status)
                         Else
+                            res.Status = HttpStatusCode.OK
                             res.Result = ApoID
                         End If
                     End Using
                     conn.Close()
                 End Using
-
             Catch ex As Exception
-                res.Status = "error"
                 res.Msg = ex.Message
                 res.Result = -1
             End Try
-            Return res
+            Return Request.CreateResponse(res.Status, res)
+        End Function
+
+        Private Function Authentification(rq As Http.HttpRequestMessage) As Boolean
+            If rq.Headers.Contains("Authorization") Then
+                Dim authkey = Request.Headers.GetValues("Authorization").First
+                Using conn As New MySqlConnection(config.conMain)
+                    conn.Open()
+                    Using cmd As New MySqlCommand()
+                        cmd.CommandText = "SELECT *  FROM o_authkey where authorizationkey = '" + authkey + "'"
+                        cmd.Connection = conn
+                        Dim myReader = cmd.ExecuteReader()
+                        While myReader.Read()
+                            Return True
+                        End While
+                        Return False
+                    End Using
+                End Using
+            Else
+                Return False
+            End If
         End Function
 
     End Class

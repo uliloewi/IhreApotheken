@@ -1,8 +1,9 @@
-﻿Imports System.Runtime.Serialization
+﻿Imports System.Net
+Imports System.Runtime.Serialization
 <DataContract>
 Public Class OperationResult
     <DataMember(Name:="Status", Order:=0)>
-    Public Property Status As String = "error"
+    Public Property Status As HttpStatusCode = HttpStatusCode.Ambiguous
 
     <DataMember(Name:="Msg", Order:=1)>
     Public Property Msg As String = ""
