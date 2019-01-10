@@ -8,6 +8,6 @@ Public Class OperationResult
     <DataMember(Name:="Msg", Order:=1)>
     Public Property Msg As String = ""
 
-    <DataMember(Name:="Result", Order:=1)>
+    <DataMember(Name:="Result", Order:=2)>
     Public Property Result As Object = Nothing
 End Class
