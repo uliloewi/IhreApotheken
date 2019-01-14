@@ -104,6 +104,48 @@ Namespace Controllers
         End Function
 
         <HttpGet>
+        <Route("pharmacies/{apoid}")>
+        Public Function GetPharmacyByID(apoid As String) As HttpResponseMessage
+            Dim opres As New OperationResult
+            If Authentification(Me.Request) Then
+                Dim res As New Pharmacy
+                Try
+                    Using conn As New MySqlConnection(conMain)
+                        conn.Open()
+                        Using cmd As New MySqlCommand()
+                            Dim myQuery As String = "SELECT * FROM e_apothekerstammdaten where ApothekenID =" + apoid
+                            cmd.CommandText = myQuery
+                            cmd.Connection = conn
+                            Dim myReader = cmd.ExecuteReader()
+                            While myReader.Read()
+                                For Each prop In res.GetType.GetProperties
+                                    If Not IsDBNull(myReader(prop.Name)) Then
+                                        If prop.PropertyType Is GetType(String) Then
+                                            prop.SetValue(res, myReader(prop.Name).ToString)
+                                        Else
+                                            prop.SetValue(res, myReader(prop.Name))
+                                        End If
+                                    End If
+                                Next
+                            End While
+                        End Using
+                        conn.Close()
+                    End Using
+                    opres.Result = res
+                    opres.Status = HttpStatusCode.OK
+                Catch ex As Exception
+                    opres.Status = HttpStatusCode.InternalServerError
+                    opres.Msg = ex.Message
+                    opres.Result = Nothing
+                End Try
+            Else
+                opres.Status = HttpStatusCode.Unauthorized
+                opres.Msg = "Keine Authorisation"
+            End If
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
+        <HttpGet>
         <Route("pharmacies/{apoid}/orderitems")>
         Public Function GetOrderDetails(apoid As String) As HttpResponseMessage
             Dim opres As New OperationResult

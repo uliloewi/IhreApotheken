@@ -201,6 +201,7 @@
     <Compile Include="Models\FunctionToken.vb" />
     <Compile Include="Models\OperationResult.vb" />
     <Compile Include="Models\OrderItem.vb" />
+    <Compile Include="Models\Pharmacy.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
