@@ -155,10 +155,12 @@ Namespace Controllers
                     Using conn As New MySqlConnection(conMain)
                         conn.Open()
                         Using cmd As New MySqlCommand()
-                            Dim myQuery As String = "SELECT distinct i.OrderItemID, i.OrderID, i.ProductOfferingID as ProductID, i.Quantity, i.CreatedByID, i.DateUpdate,
+                            Dim myQuery As String = "SELECT distinct i.OrderItemID, i.OrderID, p.ProductID, i.Quantity, i.CreatedByID, i.DateUpdate,
                      i.UpdatedByID, i.OrderItemVersion, i.OrderItemUpdateDate, p.ProductName, o.OrderDate FROM i_orderitem i  
                     INNER JOIN i_order o on (o.OrderID = i.OrderID) 
-                    INNER JOIN p_product p on (p.ProductID = i.ProductOfferingID)
+                    INNER JOIN p_productoffering f on (f.ProductOfferingID = i.ProductOfferingID) 
+                    INNER JOIN p_productcatalog l on (l.ProductCatalogID = f.ProductCatalogID)
+                    INNER JOIN p_product p on (p.ProductID = l.ProductID)
                     INNER JOIN i_contract c on (c.ContractID = o.ContractID)
                     INNER JOIN o_organisation g on (c.PartyID = g.PartyID)
                     where g.OrganisationID =" + apoid
