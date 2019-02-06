@@ -70,7 +70,9 @@ Namespace Controllers
         Public Function GetPharmacyID(functiontoken As FunctionToken) As HttpResponseMessage
             Dim res As New OperationResult
             If Authentification(Me.Request) Then
-                Dim ApoID As Integer
+                Dim found As Boolean = False
+                Dim accountRef As New CustomerAccountRef
+
                 Try
                     Using conn As New MySqlConnection(config.conMain)
                         conn.Open()
@@ -80,14 +82,16 @@ Namespace Controllers
                             cmd.Connection = conn
                             cmd.CommandText = "token_isvalid"
                             cmd.Parameters.AddWithValue("inToken", functiontoken.token)
-                            ApoID = cmd.ExecuteScalar
-                            If ApoID = 0 Then
-                                res.Status = HttpStatusCode.NotFound
-                                res.Msg = "Token ist ungültig"
-                                Throw New HttpResponseException(res.Status)
-                            Else
+                            Dim myReader As MySqlDataReader = cmd.ExecuteReader
+                            While myReader.Read()
+                                accountRef.ApothekendeID = myReader("ApothekendeID")
+                                accountRef.PharmacyID = myReader("PharmacyID")
+                                res.Result = accountRef
                                 res.Status = HttpStatusCode.OK
-                                res.Result = ApoID
+                                found = True
+                            End While
+                            If Not found Then
+                                res.Status = HttpStatusCode.NotFound
                             End If
                         End Using
                         conn.Close()
@@ -104,8 +108,8 @@ Namespace Controllers
         End Function
 
         <HttpGet>
-        <Route("pharmacies/{apoid}")>
-        Public Function GetPharmacyByID(apoid As String) As HttpResponseMessage
+        <Route("pharmacies/{pharmacyid}")>
+        Public Function GetPharmacyByID(pharmacyid As String) As HttpResponseMessage
             Dim opres As New OperationResult
             If Authentification(Me.Request) Then
                 Dim res As New Pharmacy
@@ -113,13 +117,13 @@ Namespace Controllers
                     Using conn As New MySqlConnection(conMain)
                         conn.Open()
                         Using cmd As New MySqlCommand()
-                            Dim myQuery As String = "SELECT * FROM e_apothekerstammdaten where ApothekenID =" + apoid
+                            Dim myQuery As String = "SELECT * FROM e_apothekerstammdaten where pharmacyid =" + pharmacyid
                             cmd.CommandText = myQuery
                             cmd.Connection = conn
                             Dim myReader = cmd.ExecuteReader()
                             While myReader.Read()
                                 For Each prop In res.GetType.GetProperties
-                                    If Not IsDBNull(myReader(prop.Name)) Then
+                                    If Enumerable.Range(0, myReader.FieldCount).Any(Function(i) myReader.GetName(i) = prop.Name) AndAlso Not IsDBNull(myReader(prop.Name)) Then
                                         If prop.PropertyType Is GetType(String) Then
                                             prop.SetValue(res, myReader(prop.Name).ToString)
                                         Else
@@ -170,7 +174,7 @@ Namespace Controllers
                             While myReader.Read()
                                 Dim r As New OrderItem
                                 For Each prop In r.GetType.GetProperties
-                                    If Not IsDBNull(myReader(prop.Name)) Then
+                                    If Enumerable.Range(0, myReader.FieldCount).Any(Function(i) myReader.GetName(i) = prop.Name) AndAlso Not IsDBNull(myReader(prop.Name)) Then
                                         If prop.PropertyType Is GetType(String) Then
                                             prop.SetValue(r, myReader(prop.Name).ToString)
                                         Else

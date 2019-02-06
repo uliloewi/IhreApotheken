@@ -3,7 +3,9 @@
 <DataContract>
 Public Class Pharmacy
     <DataMember>
-    Public Property ApothekenID As Integer
+    Public Property PharmacyID As Integer
+    <DataMember>
+    Public Property ApothekenID_old As String
     <DataMember>
     Public Property Kundennummer As String
     <DataMember>
