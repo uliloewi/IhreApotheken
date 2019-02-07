@@ -197,6 +197,8 @@
     <Compile Include="Global.asax.vb">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Models\Artefact.vb" />
+    <Compile Include="Models\CustomerAccountRef.vb" />
     <Compile Include="Models\FunctionOfPharmacy.vb" />
     <Compile Include="Models\FunctionToken.vb" />
     <Compile Include="Models\OperationResult.vb" />

@@ -7,5 +7,5 @@ Public Class FunctionOfPharmacy
     <DataMember>
     Public Property FunctionID As String
     <DataMember>
-    Public Property ApoID As String
+    Public Property ApoID As String 'ApothekendeID in e_customeraccount_ref
 End Class

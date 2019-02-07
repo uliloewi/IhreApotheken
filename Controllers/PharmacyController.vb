@@ -33,13 +33,12 @@ Namespace Controllers
                     cmd.Connection = conn
                     cmd.CommandText = "fuction_of_pharmacy_isvalid"
                     cmd.Parameters.AddWithValue("inApoID", re.ApoID)
-                    cmd.Parameters.AddWithValue("inFunctionID", re.FunctionID)
-                    Dim foaID As Integer = cmd.ExecuteScalar
-                    If foaID <> 0 Then
+                    Dim apothekendeID As Integer = cmd.ExecuteScalar
+                    If apothekendeID <> 0 Then
                         token = GenerateRandomString(20, False)
                         cmd.Parameters.Clear()
                         cmd.CommandText = "save_functiontoken"
-                        cmd.Parameters.AddWithValue("inFoaID", foaID)
+                        cmd.Parameters.AddWithValue("inFoaID", apothekendeID) 'ApothekendeID in e_customeraccount_ref
                         cmd.Parameters.AddWithValue("inToken", token)
                         cmd.ExecuteNonQuery()
                         res.Status = HttpStatusCode.OK
@@ -190,6 +189,120 @@ Namespace Controllers
                     opres.Result = res
                     opres.Status = HttpStatusCode.OK
                 Catch ex As Exception
+                    opres.Status = HttpStatusCode.InternalServerError
+                    opres.Msg = ex.Message
+                    opres.Result = Nothing
+                End Try
+            Else
+                opres.Status = HttpStatusCode.Unauthorized
+                opres.Msg = "Keine Authorisation"
+            End If
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
+        <HttpGet>
+        <Route("orders/{orderid}/artefacts")>
+        Public Function GetArtefactsOfOrder(orderid As String) As HttpResponseMessage
+            Dim opres As New OperationResult
+            If Authentification(Me.Request) Then
+                Dim res As New List(Of Artefact)
+                Try
+                    Using conn As New MySqlConnection(conMain)
+                        conn.Open()
+                        Using cmd As New MySqlCommand()
+                            Dim myQuery As String = "SELECT u.*,t.* FROM crm.i_artefact_attributes u 
+                                inner join crm.i_attributetype t on (u.attribute_typeID=t.attribute_typeID)
+                                inner join crm.i_order_associatedartefacts a on (u.OrderArtefactID=a.OrderArtefactID) 
+                                inner join crm.i_orderassociation s on (a.orderassociationid=s.orderassociationid)
+                                inner join crm.i_order o on (s.Orderid= o.Orderid)
+                                where o.orderid=" + orderid
+                            cmd.CommandText = myQuery
+                            cmd.Connection = conn
+                            Dim myReader = cmd.ExecuteReader()
+                            While myReader.Read()
+                                Dim arte As Artefact = res.Where(Function(a) a.OrderArtefactID = myReader("OrderArtefactID")).FirstOrDefault
+                                If arte Is Nothing Then
+                                    arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID")}
+                                    res.Add(arte)
+                                End If
+                                For Each prop In arte.GetType.GetProperties
+                                    If myReader("attributeCaption") = prop.Name Then
+                                        prop.SetValue(arte, myReader("attribute_value").ToString)
+                                    End If
+                                Next
+                            End While
+                        End Using
+                        conn.Close()
+                    End Using
+                    opres.Result = res
+                    opres.Status = HttpStatusCode.OK
+                Catch ex As Exception
+                    opres.Status = HttpStatusCode.InternalServerError
+                    opres.Msg = ex.Message
+                    opres.Result = Nothing
+                End Try
+            Else
+                opres.Status = HttpStatusCode.Unauthorized
+                opres.Msg = "Keine Authorisation"
+            End If
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
+        <HttpPost>
+        <Route("orders/{orderid}/artefacts")>
+        Public Function AddArtefactToOrder(orderid As String, arte As Artefact) As HttpResponseMessage
+            Dim opres As New OperationResult
+            Dim sqlTran As MySqlTransaction
+            If Authentification(Me.Request) Then
+                Try
+                    Using conn As New MySqlConnection(conMain)
+                        conn.Open()
+                        sqlTran = conn.BeginTransaction()
+                        Dim selectCmd As MySqlCommand = conn.CreateCommand()
+                        Dim insertCmd As MySqlCommand = conn.CreateCommand()
+                        selectCmd.Transaction = sqlTran
+                        insertCmd.Transaction = sqlTran
+                        Dim maxID As String = ""
+                        Dim myQuery As String = "INSERT INTO i_orderassociation (OrderID, OrderassociationtypeID, AssociationDate, PartyID)  VALUES (" + orderid + ", 5, NOW(), 572);"
+                        insertCmd.CommandText = myQuery
+                        insertCmd.Connection = conn
+                        insertCmd.ExecuteNonQuery()
+                        myQuery = "SELECT max(OrderassociationID) FROM i_orderassociation;"
+                        selectCmd.CommandText = myQuery
+                        selectCmd.Connection = conn
+                        Dim myReader = selectCmd.ExecuteReader()
+                        While myReader.Read()
+                            maxID = myReader(0).ToString
+                        End While
+                        myReader.Close()
+                        myQuery = "INSERT INTO i_order_associatedartefacts (OrderassociationID, ArtefactTypeID, ArtefactStateID, OrderWorkflowID)  VALUES (" + maxID + ", 2, 1001, 30004);"
+                        insertCmd.CommandText = myQuery
+                        insertCmd.Connection = conn
+                        insertCmd.ExecuteNonQuery()
+                        myQuery = "SELECT max(OrderArtefactID) FROM i_order_associatedartefacts;"
+                        selectCmd.CommandText = myQuery
+                        selectCmd.Connection = conn
+                        myReader = selectCmd.ExecuteReader()
+                        While myReader.Read()
+                            maxID = myReader(0).ToString
+                        End While
+                        myReader.Close()
+                        myQuery = "INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxID + ", 1, '" + arte.Versionsnummer + "');
+                        INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxID + ", 2, '" + arte.Dateinamen.Replace("\", "\\") + "');"
+                        insertCmd.CommandText = myQuery
+                        insertCmd.Connection = conn
+                        insertCmd.ExecuteNonQuery()
+                        opres.Status = HttpStatusCode.Created
+                        sqlTran.Commit()
+                        GetArtefactsOfOrder(orderid).TryGetContentValue(opres)
+                        opres.Result = CType(opres.Result, List(Of Artefact)).OrderBy(Function(x) x.OrderArtefactID).LastOrDefault()
+                        conn.Close()
+                    End Using
+                Catch ex As Exception
+                    If sqlTran IsNot Nothing Then
+                        sqlTran.Connection.Open()
+                        sqlTran.Rollback()
+                    End If
                     opres.Status = HttpStatusCode.InternalServerError
                     opres.Msg = ex.Message
                     opres.Result = Nothing
