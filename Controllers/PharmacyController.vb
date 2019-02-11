@@ -166,7 +166,7 @@ Namespace Controllers
                     INNER JOIN p_product p on (p.ProductID = l.ProductID)
                     INNER JOIN i_contract c on (c.ContractID = o.ContractID)
                     INNER JOIN o_organisation g on (c.PartyID = g.PartyID)
-                    where g.OrganisationID =" + apoid
+                    where g.PharmacyID =" + apoid
                             cmd.CommandText = myQuery
                             cmd.Connection = conn
                             Dim myReader = cmd.ExecuteReader()
@@ -201,41 +201,67 @@ Namespace Controllers
         End Function
 
         <HttpGet>
-        <Route("orders/{orderid}/artefacts")>
-        Public Function GetArtefactsOfOrder(orderid As String) As HttpResponseMessage
+        <Route("pharmacies/{pharmacyid}/orderedproducts/{productid}/workflows/{workflowid}/artefacts")>
+        Public Function GetArtefactsOfOrder(pharmacyid As String, productid As String, workflowid As String) As HttpResponseMessage
             Dim opres As New OperationResult
             If Authentification(Me.Request) Then
-                Dim res As New List(Of Artefact)
+                Dim artefactList As New List(Of Artefact)
+                Dim res As New Artefact
                 Try
                     Using conn As New MySqlConnection(conMain)
                         conn.Open()
                         Using cmd As New MySqlCommand()
-                            Dim myQuery As String = "SELECT u.*,t.* FROM crm.i_artefact_attributes u 
-                                inner join crm.i_attributetype t on (u.attribute_typeID=t.attribute_typeID)
-                                inner join crm.i_order_associatedartefacts a on (u.OrderArtefactID=a.OrderArtefactID) 
-                                inner join crm.i_orderassociation s on (a.orderassociationid=s.orderassociationid)
-                                inner join crm.i_order o on (s.Orderid= o.Orderid)
-                                where o.orderid=" + orderid
+                            Dim orderid As String = ""
+                            Dim myQuery As String = "SELECT distinct o.* FROM p_ProductCatalog p 
+                     INNER JOIN p_productoffering f on (f.ProductCatalogID = p.ProductCatalogID)
+                     INNER JOIN i_orderitem i  on (f.ProductOfferingID = i.ProductOfferingID)
+                     INNER JOIN i_order o  on (o.OrderID = i.OrderID)                    
+                     INNER JOIN c_customeraccount t on (t.CustomerAccountID = o.CustomerAccountID) 
+                 INNER JOIN i_contract c on (c.ContractID = t.ContractID)
+                     INNER JOIN o_organisation g on (c.PartyID = g.PartyID)                      
+                     where g.PharmacyID= '" + pharmacyid + "' And p.Productid ='" + productid + "' and o.orderstateid not in (10,4,999,99999)"
                             cmd.CommandText = myQuery
                             cmd.Connection = conn
                             Dim myReader = cmd.ExecuteReader()
                             While myReader.Read()
-                                Dim arte As Artefact = res.Where(Function(a) a.OrderArtefactID = myReader("OrderArtefactID")).FirstOrDefault
-                                If arte Is Nothing Then
-                                    arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID")}
-                                    res.Add(arte)
-                                End If
-                                For Each prop In arte.GetType.GetProperties
-                                    If myReader("attributeCaption") = prop.Name Then
-                                        prop.SetValue(arte, myReader("attribute_value").ToString)
-                                    End If
-                                Next
+                                orderid = myReader("OrderID").ToString
                             End While
+                            myReader.Close()
+                            If (orderid <> "") Then
+                                myQuery = "SELECT u.*,t.* FROM crm.i_artefact_attributes u 
+                                inner join crm.i_attributetype t on (u.attribute_typeID=t.attribute_typeID)
+                                inner join crm.i_order_associatedartefacts a on (u.OrderArtefactID=a.OrderArtefactID) 
+                                inner join crm.i_orderassociation s on (a.orderassociationid=s.orderassociationid)
+                                inner join crm.i_order o on (s.Orderid= o.Orderid)
+                                where o.orderid=" + orderid + " and a.orderworkflowid='" + workflowid + "'"
+                                cmd.CommandText = myQuery
+                                cmd.Connection = conn
+                                myReader = cmd.ExecuteReader()
+                                While myReader.Read()
+                                    Dim arte As Artefact = artefactList.Where(Function(a) a.OrderArtefactID = myReader("OrderArtefactID")).FirstOrDefault
+                                    If arte Is Nothing Then
+                                        arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID")}
+                                        artefactList.Add(arte)
+                                    End If
+                                    For Each prop In arte.GetType.GetProperties
+                                        If myReader("attributeCaption") = prop.Name Then
+                                            prop.SetValue(arte, myReader("attribute_value").ToString)
+                                        End If
+                                    Next
+                                End While
+                                res = artefactList.OrderBy(Function(x) CDbl(x.Versionsnummer)).LastOrDefault()
+                                If res IsNot Nothing Then
+                                    opres.Result = res
+                                    opres.Status = HttpStatusCode.OK
+                                Else
+                                    opres.Status = HttpStatusCode.NotFound
+                                End If
+                            Else
+                                opres.Status = HttpStatusCode.NotFound
+                            End If
                         End Using
                         conn.Close()
                     End Using
-                    opres.Result = res
-                    opres.Status = HttpStatusCode.OK
                 Catch ex As Exception
                     opres.Status = HttpStatusCode.InternalServerError
                     opres.Msg = ex.Message
@@ -249,8 +275,8 @@ Namespace Controllers
         End Function
 
         <HttpPost>
-        <Route("orders/{orderid}/artefacts")>
-        Public Function AddArtefactToOrder(orderid As String, arte As Artefact) As HttpResponseMessage
+        <Route("pharmacies/{pharmacyid}/orderedproducts/{productid}/workflows/{workflowid}/artefacts")>
+        Public Function AddArtefactToOrder(pharmacyid As String, productid As String, workflowid As String, arte As Artefact) As HttpResponseMessage
             Dim opres As New OperationResult
             Dim sqlTran As MySqlTransaction
             If Authentification(Me.Request) Then
@@ -262,40 +288,54 @@ Namespace Controllers
                         Dim insertCmd As MySqlCommand = conn.CreateCommand()
                         selectCmd.Transaction = sqlTran
                         insertCmd.Transaction = sqlTran
-                        Dim maxID As String = ""
-                        Dim myQuery As String = "INSERT INTO i_orderassociation (OrderID, OrderassociationtypeID, AssociationDate, PartyID)  VALUES (" + orderid + ", 5, NOW(), 572);"
-                        insertCmd.CommandText = myQuery
-                        insertCmd.Connection = conn
-                        insertCmd.ExecuteNonQuery()
-                        myQuery = "SELECT max(OrderassociationID) FROM i_orderassociation;"
+                        Dim orderid As String = ""
+                        Dim myQuery As String = "SELECT distinct o.* FROM p_ProductCatalog p 
+                     INNER JOIN p_productoffering f on (f.ProductCatalogID = p.ProductCatalogID)
+                     INNER JOIN i_orderitem i  on (f.ProductOfferingID = i.ProductOfferingID)
+                     INNER JOIN i_order o  on (o.OrderID = i.OrderID)                    
+                     INNER JOIN c_customeraccount t on (t.CustomerAccountID = o.CustomerAccountID) 
+                     INNER JOIN i_contract c on (c.ContractID = t.ContractID)
+                     INNER JOIN o_organisation g on (c.PartyID = g.PartyID)                      
+                     where g.PharmacyID= '" + pharmacyid + "' And p.Productid ='" + productid + "' and o.orderstateid not in (10,4,999,99999)"
                         selectCmd.CommandText = myQuery
                         selectCmd.Connection = conn
                         Dim myReader = selectCmd.ExecuteReader()
                         While myReader.Read()
-                            maxID = myReader(0).ToString
+                            orderid = myReader("OrderID").ToString
                         End While
                         myReader.Close()
-                        myQuery = "INSERT INTO i_order_associatedartefacts (OrderassociationID, ArtefactTypeID, ArtefactStateID, OrderWorkflowID)  VALUES (" + maxID + ", 2, 1001, 30004);"
-                        insertCmd.CommandText = myQuery
-                        insertCmd.Connection = conn
-                        insertCmd.ExecuteNonQuery()
-                        myQuery = "SELECT max(OrderArtefactID) FROM i_order_associatedartefacts;"
-                        selectCmd.CommandText = myQuery
-                        selectCmd.Connection = conn
-                        myReader = selectCmd.ExecuteReader()
-                        While myReader.Read()
-                            maxID = myReader(0).ToString
-                        End While
-                        myReader.Close()
-                        myQuery = "INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxID + ", 1, '" + arte.Versionsnummer + "');
-                        INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxID + ", 2, '" + arte.Dateinamen.Replace("\", "\\") + "');"
-                        insertCmd.CommandText = myQuery
-                        insertCmd.Connection = conn
-                        insertCmd.ExecuteNonQuery()
-                        opres.Status = HttpStatusCode.Created
+                        If (orderid <> "") Then
+                            Dim maxAssociationID As String = ""
+                            myQuery = "INSERT INTO i_orderassociation (OrderID, OrderassociationtypeID, AssociationDate, PartyID)  VALUES (" + orderid + ", 5, NOW(), 572);"
+                            insertCmd.CommandText = myQuery
+                            insertCmd.Connection = conn
+                            insertCmd.ExecuteNonQuery()
+                            myQuery = "SELECT max(OrderassociationID) FROM i_orderassociation;"
+                            selectCmd.CommandText = myQuery
+                            selectCmd.Connection = conn
+                            myReader = selectCmd.ExecuteReader()
+                            While myReader.Read()
+                                maxAssociationID = myReader(0).ToString
+                            End While
+                            myReader.Close()
+                            Dim maxArtefactID As String = getMaxArtefactID(selectCmd, conn, myReader, workflowid)
+                            myQuery = "INSERT INTO i_order_associatedartefacts (OrderassociationID, ArtefactTypeID, ArtefactStateID, OrderWorkflowID, ParentOrderArtefactID)  VALUES (" +
+                                maxAssociationID + ", 2, 1001, " + workflowid + "," + maxArtefactID + ");"
+                            insertCmd.CommandText = myQuery
+                            insertCmd.Connection = conn
+                            insertCmd.ExecuteNonQuery()
+                            maxArtefactID = getMaxArtefactID(selectCmd, conn, myReader, workflowid)
+                            myQuery = "INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxArtefactID + ", 1, '" + arte.Versionsnummer + "');
+                            INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxArtefactID + ", 2, '" + arte.Dateinamen.Replace("\", "\\") + "');"
+                            insertCmd.CommandText = myQuery
+                            insertCmd.Connection = conn
+                            insertCmd.ExecuteNonQuery()
+                            opres.Status = HttpStatusCode.Created
+                        Else
+                            opres.Status = HttpStatusCode.NotFound
+                        End If
                         sqlTran.Commit()
-                        GetArtefactsOfOrder(orderid).TryGetContentValue(opres)
-                        opres.Result = CType(opres.Result, List(Of Artefact)).OrderBy(Function(x) x.OrderArtefactID).LastOrDefault()
+                        GetArtefactsOfOrder(pharmacyid, productid, workflowid).TryGetContentValue(opres)
                         conn.Close()
                     End Using
                 Catch ex As Exception
@@ -312,6 +352,19 @@ Namespace Controllers
                 opres.Msg = "Keine Authorisation"
             End If
             Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
+        Private Function getMaxArtefactID(selectCmd, conn, myReader, workflowID) As String
+            Dim maxArtefactID As String
+            Dim myQuery As String = "Select max(OrderArtefactID) FROM i_order_associatedartefacts where OrderWorkflowID=" + workflowID
+            selectCmd.CommandText = myQuery
+            selectCmd.Connection = conn
+            myReader = selectCmd.ExecuteReader()
+            While myReader.Read()
+                maxArtefactID = myReader(0).ToString
+            End While
+            myReader.Close()
+            Return maxArtefactID
         End Function
 
         Private Function Authentification(rq As Http.HttpRequestMessage) As Boolean

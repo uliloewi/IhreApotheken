@@ -8,5 +8,7 @@ Public Class Artefact
     Public Property Versionsnummer As String
     <DataMember>
     Public Property Dateinamen As String
+    <DataMember>
+    Public Property ParentOrderArtefactID As Integer
 
 End Class
