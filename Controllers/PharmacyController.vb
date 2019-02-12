@@ -107,6 +107,35 @@ Namespace Controllers
         End Function
 
         <HttpGet>
+        <Route("Apothekendeids")>
+        Public Function GetApothekendeIDs() As HttpResponseMessage
+            Dim opres As New OperationResult
+            Dim res As New List(Of Integer)
+            Try
+                Using conn As New MySqlConnection(conMain)
+                    conn.Open()
+                    Using cmd As New MySqlCommand()
+                        Dim myQuery As String = "SELECT ApothekendeID FROM crm.e_customeraccount_ref"
+                        cmd.CommandText = myQuery
+                        cmd.Connection = conn
+                        Dim myReader = cmd.ExecuteReader()
+                        While myReader.Read()
+                            res.Add(CInt(myReader(0)))
+                        End While
+                    End Using
+                    conn.Close()
+                End Using
+                opres.Result = res
+                opres.Status = HttpStatusCode.OK
+            Catch ex As Exception
+                opres.Status = HttpStatusCode.InternalServerError
+                opres.Msg = ex.Message
+                opres.Result = Nothing
+            End Try
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
+        <HttpGet>
         <Route("pharmacies/{pharmacyid}")>
         Public Function GetPharmacyByID(pharmacyid As String) As HttpResponseMessage
             Dim opres As New OperationResult
