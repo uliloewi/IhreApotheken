@@ -9,6 +9,8 @@ Public Class Artefact
     <DataMember>
     Public Property Dateinamen As String
     <DataMember>
+    Public Property Dateinamenvorschau As String
+    <DataMember>
     Public Property ParentOrderArtefactID As Integer
 
 End Class

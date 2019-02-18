@@ -355,7 +355,8 @@ Namespace Controllers
                             insertCmd.ExecuteNonQuery()
                             maxArtefactID = getMaxArtefactID(selectCmd, conn, myReader, workflowid)
                             myQuery = "INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxArtefactID + ", 1, '" + arte.Versionsnummer + "');
-                            INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxArtefactID + ", 2, '" + arte.Dateinamen.Replace("\", "\\") + "');"
+                            INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxArtefactID + ", 2, '" + arte.Dateinamen.Replace("\", "\\") + "');
+                            INSERT INTO i_artefact_attributes (OrderArtefactID, attribute_typeID, attribute_value)  VALUES (" + maxArtefactID + ", 3, '" + arte.Dateinamenvorschau.Replace("\", "\\") + "');"
                             insertCmd.CommandText = myQuery
                             insertCmd.Connection = conn
                             insertCmd.ExecuteNonQuery()
