@@ -257,7 +257,7 @@ Namespace Controllers
                             End While
                             myReader.Close()
                             If (orderid <> "") Then
-                                myQuery = "SELECT u.*,t.* FROM crm.i_artefact_attributes u 
+                                myQuery = "SELECT u.*,t.*, s.AssociationDate FROM crm.i_artefact_attributes u 
                                 inner join crm.i_attributetype t on (u.attribute_typeID=t.attribute_typeID)
                                 inner join crm.i_order_associatedartefacts a on (u.OrderArtefactID=a.OrderArtefactID) 
                                 inner join crm.i_orderassociation s on (a.orderassociationid=s.orderassociationid)
@@ -269,7 +269,7 @@ Namespace Controllers
                                 While myReader.Read()
                                     Dim arte As Artefact = artefactList.Where(Function(a) a.OrderArtefactID = myReader("OrderArtefactID")).FirstOrDefault
                                     If arte Is Nothing Then
-                                        arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID")}
+                                        arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID"), .AssociationDate = myReader("AssociationDate").ToString.Substring(0, 16)}
                                         artefactList.Add(arte)
                                     End If
                                     For Each prop In arte.GetType.GetProperties

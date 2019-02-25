@@ -192,6 +192,7 @@
   <ItemGroup>
     <Compile Include="App_Start\RouteConfig.vb" />
     <Compile Include="App_Start\WebApiConfig.vb" />
+    <Compile Include="Common\DataProcessingHelper.vb" />
     <Compile Include="config.vb" />
     <Compile Include="Controllers\PharmacyController.vb" />
     <Compile Include="Global.asax.vb">

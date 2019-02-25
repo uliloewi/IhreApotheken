@@ -12,5 +12,6 @@ Public Class Artefact
     Public Property Dateinamenvorschau As String
     <DataMember>
     Public Property ParentOrderArtefactID As Integer
-
+    <DataMember>
+    Public Property AssociationDate As String
 End Class
