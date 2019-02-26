@@ -14,4 +14,8 @@ Public Class Artefact
     Public Property ParentOrderArtefactID As Integer
     <DataMember>
     Public Property AssociationDate As String
+    <DataMember>
+    Public Property PartyID As String
+    <DataMember>
+    Public Property ProductID As String
 End Class
