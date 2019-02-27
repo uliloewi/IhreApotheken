@@ -40,7 +40,10 @@ Namespace Controllers
                         cmd.CommandText = "save_functiontoken"
                         cmd.Parameters.AddWithValue("inFoaID", apothekendeID) 'ApothekendeID in e_customeraccount_ref
                         cmd.Parameters.AddWithValue("inToken", token)
-                        cmd.ExecuteNonQuery()
+                        Dim myReader As MySqlDataReader = cmd.ExecuteReader
+                        While myReader.Read()
+                            token = myReader(0)
+                        End While
                         res.Status = HttpStatusCode.OK
                         res.Result = token
                         res.Msg = ""

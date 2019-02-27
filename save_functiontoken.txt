@@ -4,12 +4,12 @@ CREATE DEFINER=`SBEAdmin`@`%` PROCEDURE `save_functiontoken`(
 )
 BEGIN
     Declare phID int(11) ;
-    SELECT count(*) INTO phID FROM o_functiontoken a inner join e_customeraccount_ref b on (a.PharmacyID = b.PharmacyID) WHERE b.ApothekendeID = inFoaID; 
-    if (phID=1) Then
+    SELECT count(*) INTO phID FROM o_functiontoken a inner join e_customeraccount_ref b on (a.PharmacyID = b.PharmacyID) WHERE b.ApothekendeID = inFoaID and DATE_ADD(a.datecreated, INTERVAL 2 hour) >= now(); 
+    IF (phID=1) Then
 		SELECT a.PharmacyID INTO phID FROM o_functiontoken a inner join e_customeraccount_ref b on (a.PharmacyID = b.PharmacyID) WHERE b.ApothekendeID = inFoaID; 
-		UPDATE o_functiontoken 		Set datecreated = now()		WHERE PharmacyID = phID;       
-    ELSE
-        SELECT count(*) INTO phID FROM e_customeraccount_ref WHERE ApothekendeID = inFoaID; 
+		UPDATE o_functiontoken 		Set datecreated = now()		WHERE PharmacyID = phID;  
+	ELSE
+		SELECT count(*) INTO phID FROM e_customeraccount_ref WHERE ApothekendeID = inFoaID; 
         if (phID=1) Then
             SELECT PharmacyID INTO phID FROM e_customeraccount_ref WHERE ApothekendeID = inFoaID; 		
             INSERT INTO o_functiontoken (PharmacyID, token, datecreated)
@@ -29,7 +29,7 @@ BEGIN
                 SELECT PharmacyID INTO phID FROM e_customeraccount_ref WHERE ApothekendeID = inFoaID limit 1; 		
                 INSERT INTO o_functiontoken (PharmacyID, token, datecreated) VALUES (phID, inToken, now());
             end if;
-        end if;        
+        end if;       
     END IF;
     SELECT token FROM o_functiontoken WHERE PharmacyID = phID;
 END
