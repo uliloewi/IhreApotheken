@@ -1,0 +1,35 @@
+CREATE DEFINER=`SBEAdmin`@`%` PROCEDURE `save_functiontoken`(
+	in inFoaID int(11),
+    in inToken varchar(45)
+)
+BEGIN
+    Declare phID int(11) ;
+    SELECT count(*) INTO phID FROM o_functiontoken a inner join e_customeraccount_ref b on (a.PharmacyID = b.PharmacyID) WHERE b.ApothekendeID = inFoaID; 
+    if (phID=1) Then
+		SELECT a.PharmacyID INTO phID FROM o_functiontoken a inner join e_customeraccount_ref b on (a.PharmacyID = b.PharmacyID) WHERE b.ApothekendeID = inFoaID; 
+		UPDATE o_functiontoken 		Set datecreated = now()		WHERE PharmacyID = phID;       
+    ELSE
+        SELECT count(*) INTO phID FROM e_customeraccount_ref WHERE ApothekendeID = inFoaID; 
+        if (phID=1) Then
+            SELECT PharmacyID INTO phID FROM e_customeraccount_ref WHERE ApothekendeID = inFoaID; 		
+            INSERT INTO o_functiontoken (PharmacyID, token, datecreated)
+			VALUES (phID, inToken, now());
+		else
+            SELECT count(*) INTO phID FROM e_customeraccount_ref a 
+            inner join o_organisation o on (a.PharmacyID = o.PharmacyID) 
+            inner join i_contract c on (c.partyID = o.PartyID) 
+            WHERE a.ApothekendeID = inFoaID ;
+            if (phID>0) Then            
+				SELECT a.PharmacyID INTO phID FROM e_customeraccount_ref a 
+				inner join o_organisation o on (a.PharmacyID = o.PharmacyID) 
+				inner join i_contract c on (c.partyID = o.PartyID) 
+				WHERE a.ApothekendeID = inFoaID limit 1;   
+                INSERT INTO o_functiontoken (PharmacyID, token, datecreated) VALUES (phID, inToken, now());
+			else
+                SELECT PharmacyID INTO phID FROM e_customeraccount_ref WHERE ApothekendeID = inFoaID limit 1; 		
+                INSERT INTO o_functiontoken (PharmacyID, token, datecreated) VALUES (phID, inToken, now());
+            end if;
+        end if;        
+    END IF;
+    SELECT token FROM o_functiontoken WHERE PharmacyID = phID;
+END
