@@ -6,7 +6,7 @@ BEGIN
     Declare phID int(11) ;
     SELECT count(*) INTO phID FROM o_functiontoken a inner join e_customeraccount_ref b on (a.PharmacyID = b.PharmacyID) WHERE b.ApothekendeID = inFoaID and DATE_ADD(a.datecreated, INTERVAL 2 hour) >= now(); 
     IF (phID=1) Then
-		SELECT a.PharmacyID INTO phID FROM o_functiontoken a inner join e_customeraccount_ref b on (a.PharmacyID = b.PharmacyID) WHERE b.ApothekendeID = inFoaID; 
+		SELECT distinct a.PharmacyID INTO phID FROM o_functiontoken a inner join e_customeraccount_ref b on (a.PharmacyID = b.PharmacyID) WHERE b.ApothekendeID = inFoaID; 
 		UPDATE o_functiontoken 		Set datecreated = now()		WHERE PharmacyID = phID;  
 	ELSE
 		SELECT count(*) INTO phID FROM e_customeraccount_ref WHERE ApothekendeID = inFoaID; 
