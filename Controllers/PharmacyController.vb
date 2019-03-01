@@ -196,7 +196,7 @@ Namespace Controllers
                     INNER JOIN p_productoffering f on (f.ProductOfferingID = i.ProductOfferingID) 
                     INNER JOIN p_productcatalog l on (l.ProductCatalogID = f.ProductCatalogID)
                     INNER JOIN p_product p on (p.ProductID = l.ProductID)
-                    INNER JOIN i_contract c on (c.ContractID = o.ContractID)
+                    inner join c_customeraccount c on (o.customeraccountid=c.customeraccountid)
                     INNER JOIN o_organisation g on (c.PartyID = g.PartyID)
                     where g.PharmacyID =" + apoid
                             cmd.CommandText = myQuery
@@ -240,8 +240,7 @@ Namespace Controllers
                      INNER JOIN i_orderitem i  on (f.ProductOfferingID = i.ProductOfferingID)
                      INNER JOIN i_order o  on (o.OrderID = i.OrderID)                    
                      INNER JOIN c_customeraccount t on (t.CustomerAccountID = o.CustomerAccountID) 
-                 INNER JOIN i_contract c on (c.ContractID = t.ContractID)
-                     INNER JOIN o_organisation g on (c.PartyID = g.PartyID)                      
+                     INNER JOIN o_organisation g on (t.PartyID = g.PartyID)                      
                      where g.PharmacyID= '" + pharmacyid + "' And p.Productid ='" + productid + "' and o.orderstateid not in (10,4,999,99999)"
             cmd.CommandText = myQuery
             cmd.Connection = conn
