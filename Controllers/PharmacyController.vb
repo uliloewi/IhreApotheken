@@ -112,13 +112,14 @@ Namespace Controllers
         <HttpGet>
         <Route("Apothekendeids")>
         Public Function GetApothekendeIDs() As HttpResponseMessage
+            Dim myQuery As String = "SELECT ApothekendeID FROM crm.e_customeraccount_ref"
+            'Return GetList(Of Int16)(myQuery)
             Dim opres As New OperationResult
             Dim res As New List(Of Integer)
             Try
                 Using conn As New MySqlConnection(conMain)
                     conn.Open()
                     Using cmd As New MySqlCommand()
-                        Dim myQuery As String = "SELECT ApothekendeID FROM crm.e_customeraccount_ref"
                         cmd.CommandText = myQuery
                         cmd.Connection = conn
                         Dim myReader = cmd.ExecuteReader()
@@ -141,56 +142,14 @@ Namespace Controllers
         <HttpGet>
         <Route("pharmacies/{pharmacyid}")>
         Public Function GetPharmacyByID(pharmacyid As String) As HttpResponseMessage
-            Dim opres As New OperationResult
-            If Authentification(Me.Request) Then
-                Dim res As New Pharmacy
-                Try
-                    Using conn As New MySqlConnection(conMain)
-                        conn.Open()
-                        Using cmd As New MySqlCommand()
-                            Dim myQuery As String = "SELECT * FROM e_apothekerstammdaten where pharmacyid =" + pharmacyid
-                            cmd.CommandText = myQuery
-                            cmd.Connection = conn
-                            Dim myReader = cmd.ExecuteReader()
-                            While myReader.Read()
-                                For Each prop In res.GetType.GetProperties
-                                    If Enumerable.Range(0, myReader.FieldCount).Any(Function(i) myReader.GetName(i) = prop.Name) AndAlso Not IsDBNull(myReader(prop.Name)) Then
-                                        If prop.PropertyType Is GetType(String) Then
-                                            prop.SetValue(res, myReader(prop.Name).ToString)
-                                        Else
-                                            prop.SetValue(res, myReader(prop.Name))
-                                        End If
-                                    End If
-                                Next
-                            End While
-                        End Using
-                        conn.Close()
-                    End Using
-                    opres.Result = res
-                    opres.Status = HttpStatusCode.OK
-                Catch ex As Exception
-                    opres.Status = HttpStatusCode.InternalServerError
-                    opres.Msg = ex.Message
-                    opres.Result = Nothing
-                End Try
-            Else
-                opres.Status = HttpStatusCode.Unauthorized
-                opres.Msg = "Keine Authorisation"
-            End If
-            Return Request.CreateResponse(opres.Status, opres)
+            Dim myQuery As String = "SELECT * FROM e_apothekerstammdaten where pharmacyid =" + pharmacyid
+            Return GetAnObject(Of Pharmacy)(myQuery)
         End Function
 
         <HttpGet>
         <Route("pharmacies/{apoid}/orderitems")>
         Public Function GetOrderDetails(apoid As String) As HttpResponseMessage
-            Dim opres As New OperationResult
-            If Authentification(Me.Request) Then
-                Dim res As New List(Of OrderItem)
-                Try
-                    Using conn As New MySqlConnection(conMain)
-                        conn.Open()
-                        Using cmd As New MySqlCommand()
-                            Dim myQuery As String = "SELECT distinct i.OrderItemID, i.OrderID, p.ProductID, i.Quantity, i.CreatedByID, i.DateUpdate,
+            Dim myQuery As String = "SELECT distinct i.OrderItemID, i.OrderID, p.ProductID, i.Quantity, i.CreatedByID, i.DateUpdate,
                      i.UpdatedByID, i.OrderItemVersion, p.ProductName, o.OrderDate FROM i_orderitem i  
                     INNER JOIN i_order o on (o.OrderID = i.OrderID) 
                     INNER JOIN p_productoffering f on (f.ProductOfferingID = i.ProductOfferingID) 
@@ -199,37 +158,7 @@ Namespace Controllers
                     inner join c_customeraccount c on (o.customeraccountid=c.customeraccountid)
                     INNER JOIN o_organisation g on (c.PartyID = g.PartyID)
                     where g.PharmacyID =" + apoid
-                            cmd.CommandText = myQuery
-                            cmd.Connection = conn
-                            Dim myReader = cmd.ExecuteReader()
-                            While myReader.Read()
-                                Dim r As New OrderItem
-                                For Each prop In r.GetType.GetProperties
-                                    If Enumerable.Range(0, myReader.FieldCount).Any(Function(i) myReader.GetName(i) = prop.Name) AndAlso Not IsDBNull(myReader(prop.Name)) Then
-                                        If prop.PropertyType Is GetType(String) Then
-                                            prop.SetValue(r, myReader(prop.Name).ToString)
-                                        Else
-                                            prop.SetValue(r, myReader(prop.Name))
-                                        End If
-                                    End If
-                                Next
-                                res.Add(r)
-                            End While
-                        End Using
-                        conn.Close()
-                    End Using
-                    opres.Result = res
-                    opres.Status = HttpStatusCode.OK
-                Catch ex As Exception
-                    opres.Status = HttpStatusCode.InternalServerError
-                    opres.Msg = ex.Message
-                    opres.Result = Nothing
-                End Try
-            Else
-                opres.Status = HttpStatusCode.Unauthorized
-                opres.Msg = "Keine Authorisation"
-            End If
-            Return Request.CreateResponse(opres.Status, opres)
+            Return GetList(Of OrderItem)(myQuery)
         End Function
 
         Private Function OldQueryOfArtefacts(pharmacyid As String, productid As String, cmd As MySqlCommand, conn As MySqlConnection, artefactList As List(Of Artefact)) As Artefact
@@ -488,5 +417,152 @@ Namespace Controllers
             End If
         End Function
 
+
+        Private Function GetList(Of T As {New})(myQuery As String, Optional dict As Dictionary(Of String, String) = Nothing) As HttpResponseMessage
+            Authentification(Me.Request)
+            Dim res As New List(Of T)
+            Dim opres As New OperationResult
+            opres.Status = HttpStatusCode.NotFound
+            Try
+                Using conn As New MySqlConnection(conMain)
+                    conn.Open()
+                    Using cmd As New MySqlCommand()
+                        cmd.CommandText = myQuery
+                        cmd.Connection = conn
+                        Dim myReader = cmd.ExecuteReader()
+                        While myReader.Read()
+                            Dim r As New T
+                            SetPropertyValues(r, myReader, dict)
+                            res.Add(r)
+                            opres.Status = HttpStatusCode.OK
+                        End While
+                    End Using
+                    conn.Close()
+                End Using
+                opres.Result = res
+            Catch ex As Exception
+                opres.Status = HttpStatusCode.InternalServerError
+                opres.Msg = ex.Message
+                opres.Result = Nothing
+            End Try
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
+        Private Function GetAnObject(Of T As {New})(myQuery As String, Optional dict As Dictionary(Of String, String) = Nothing)
+            Authentification(Me.Request).ToString()
+            Dim res As New T
+            Dim opres As New OperationResult
+            opres.Status = HttpStatusCode.NotFound
+            Try
+                Using conn As New MySqlConnection(conMain)
+                    conn.Open()
+                    Using cmd As New MySqlCommand()
+                        cmd.CommandText = myQuery
+                        cmd.Connection = conn
+                        Dim myReader = cmd.ExecuteReader()
+                        While myReader.Read()
+                            SetPropertyValues(res, myReader)
+                            opres.Status = HttpStatusCode.OK
+                        End While
+                    End Using
+                    conn.Close()
+                End Using
+                opres.Result = res
+            Catch ex As Exception
+                opres.Status = HttpStatusCode.InternalServerError
+                opres.Msg = ex.Message
+                opres.Result = Nothing
+            End Try
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
+        Private Function UpdateAnObject(Of T As {New})(queryString As String, idName As String, whereCondiction As String, queryResult As String, ct As T)
+            Authentification(Me.Request)
+            Dim opres As New OperationResult
+            opres.Status = HttpStatusCode.OK
+            Dim myQuery = queryString
+            Dim res As New T
+            Dim sqlTran As MySqlTransaction
+            Try
+                Using conn As New MySqlConnection(conMain)
+                    conn.Open()
+                    sqlTran = conn.BeginTransaction()
+                    Dim cmd As MySqlCommand = conn.CreateCommand
+                    cmd.Transaction = sqlTran
+                    For Each prop In ct.GetType.GetProperties
+                        Dim value = prop.GetValue(ct)
+                        If Not IsNothing(value) And prop.Name <> idName Then
+                            Select Case prop.Name
+                                Case "PasswordHash"
+                                    myQuery = myQuery + prop.Name + "='" + MD5Create(value.ToString) + "',"
+                                Case Else
+                                    myQuery = myQuery + prop.Name + "='" + value + "',"
+                            End Select
+                        End If
+                    Next
+                    If myQuery.EndsWith(",") Then myQuery = myQuery.Remove(myQuery.Length - 1)
+                    myQuery = myQuery + whereCondiction
+                    cmd.CommandText = myQuery
+                    cmd.Connection = conn
+                    cmd.ExecuteNonQuery()
+                    sqlTran.Commit()
+                    cmd.CommandText = queryResult
+                    cmd.Connection = conn
+                    Dim myReader = cmd.ExecuteReader()
+                    While myReader.Read()
+                        SetPropertyValues(res, myReader)
+                        opres.Status = HttpStatusCode.OK
+                    End While
+                    conn.Close()
+                End Using
+                opres.Result = res
+            Catch ex As Exception
+                If sqlTran IsNot Nothing Then
+                    sqlTran.Connection.Open()
+                    sqlTran.Rollback()
+                End If
+                opres.Status = HttpStatusCode.InternalServerError
+                opres.Msg = ex.Message
+                opres.Result = Nothing
+            End Try
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
+
+
+        Private Function CreateAnObject(Of T As {New})(insertQuery As String, selectQuery As String)
+            Authentification(Me.Request)
+            Dim res As New T
+            Dim opres As New OperationResult
+            opres.Status = HttpStatusCode.OK
+            Dim sqlTran As MySqlTransaction
+            Try
+                Using conn As New MySqlConnection(conMain)
+                    conn.Open()
+                    sqlTran = conn.BeginTransaction()
+                    Dim cmd As MySqlCommand = conn.CreateCommand
+                    cmd.Transaction = sqlTran
+                    cmd.CommandText = insertQuery
+                    cmd.Connection = conn
+                    cmd.ExecuteNonQuery()
+                    sqlTran.Commit()
+                    cmd.CommandText = selectQuery
+                    Dim myReader = cmd.ExecuteReader()
+                    While myReader.Read()
+                        SetPropertyValues(res, myReader)
+                    End While
+                    conn.Close()
+                End Using
+                opres.Result = res
+            Catch ex As Exception
+                If sqlTran IsNot Nothing Then
+                    sqlTran.Connection.Open()
+                    sqlTran.Rollback()
+                End If
+                opres.Status = HttpStatusCode.InternalServerError
+                opres.Msg = ex.Message
+                opres.Result = Nothing
+            End Try
+            Return Request.CreateResponse(opres.Status, opres)
+        End Function
     End Class
 End Namespace

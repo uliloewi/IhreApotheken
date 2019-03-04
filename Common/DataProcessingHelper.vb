@@ -55,4 +55,22 @@ Public Module DataProccessingHelper
         myQuery = myQuery + " )"
         Return myQuery
     End Function
+
+    Friend Function MD5Create(ByVal Input As String, Optional Salt As String = "aa35f0e3e15") As String
+        Dim MD5 As New System.Security.Cryptography.MD5CryptoServiceProvider()
+        MD5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(Input & Salt))
+        Dim data() As Byte = MD5.Hash
+
+        Dim sBuilder As New System.Text.StringBuilder()
+
+        ' Loop through each byte of the hashed data  
+        ' and format each one as a hexadecimal string. 
+        Dim i As Integer
+        For i = 0 To data.Length - 1
+            sBuilder.Append(data(i).ToString("x2"))
+        Next i
+
+        ' Return the hexadecimal string. 
+        Return sBuilder.ToString()
+    End Function
 End Module
