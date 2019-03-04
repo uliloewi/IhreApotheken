@@ -147,8 +147,8 @@ Namespace Controllers
         End Function
 
         <HttpGet>
-        <Route("pharmacies/{apoid}/orderitems")>
-        Public Function GetOrderDetails(apoid As String) As HttpResponseMessage
+        <Route("pharmacies/{pharmacyid}/orderitems")>
+        Public Function GetOrderDetails(pharmacyid As String) As HttpResponseMessage
             Dim myQuery As String = "SELECT distinct i.OrderItemID, i.OrderID, p.ProductID, i.Quantity, i.CreatedByID, i.DateUpdate,
                      i.UpdatedByID, i.OrderItemVersion, p.ProductName, o.OrderDate FROM i_orderitem i  
                     INNER JOIN i_order o on (o.OrderID = i.OrderID) 
@@ -157,7 +157,7 @@ Namespace Controllers
                     INNER JOIN p_product p on (p.ProductID = l.ProductID)
                     inner join c_customeraccount c on (o.customeraccountid=c.customeraccountid)
                     INNER JOIN o_organisation g on (c.PartyID = g.PartyID)
-                    where g.PharmacyID =" + apoid
+                    where i.orderItemStateID not in (4, 10) and o.orderstateid not in (4,10) and g.PharmacyID =" + pharmacyid
             Return GetList(Of OrderItem)(myQuery)
         End Function
 
