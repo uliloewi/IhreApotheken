@@ -236,7 +236,13 @@ Namespace Controllers
 
                             myReader = cmd.ExecuteReader()
                             While myReader.Read()
-                                foundArtefactID = myReader(0)
+                                If myReader(0).ToString = "" Then
+                                    opres.Status = HttpStatusCode.NotFound
+                                    opres.Msg = "Kein Artefakt gefunden."
+                                    Return Request.CreateResponse(opres.Status, opres)
+                                Else
+                                    foundArtefactID = myReader(0)
+                                End If
                             End While
                             myReader.Close()
 
@@ -292,7 +298,6 @@ Namespace Controllers
                 Try
                     Using conn As New MySqlConnection(conMain)
                         conn.Open()
-                        sqlTran = conn.BeginTransaction()
                         Dim selectCmd As MySqlCommand = conn.CreateCommand()
                         Dim insertCmd As MySqlCommand = conn.CreateCommand()
                         selectCmd.Transaction = sqlTran
@@ -314,6 +319,7 @@ Namespace Controllers
                         myReader.Close()
                         Dim partyid = GetPartyID(selectCmd, conn, myReader, pharmacyid)
                         If (orderid <> "") Then
+                            sqlTran = conn.BeginTransaction()
                             Dim maxAssociationID As String = ""
                             myQuery = "INSERT INTO i_orderassociation (OrderID, OrderassociationtypeID, AssociationDate, PartyID)  VALUES (" + orderid + ", 5, NOW(), 572);"
                             insertCmd.CommandText = myQuery
@@ -348,11 +354,12 @@ Namespace Controllers
                             insertCmd.Connection = conn
                             insertCmd.ExecuteNonQuery()
                             opres.Status = HttpStatusCode.Created
+                            sqlTran.Commit()
+                            GetArtefactsOfOrder(pharmacyid, productid, workflowid).TryGetContentValue(opres)
                         Else
                             opres.Status = HttpStatusCode.NotFound
+                            opres.Msg = "Keine Bestellung gefunden. Kein Artefakt gespeichert."
                         End If
-                        sqlTran.Commit()
-                        GetArtefactsOfOrder(pharmacyid, productid, workflowid).TryGetContentValue(opres)
                         conn.Close()
                     End Using
                 Catch ex As Exception
