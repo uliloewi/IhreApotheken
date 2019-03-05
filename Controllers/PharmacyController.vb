@@ -483,13 +483,15 @@ Namespace Controllers
             Return Request.CreateResponse(opres.Status, opres)
         End Function
 
-        Private Function UpdateAnObject(Of T As {New})(queryString As String, idName As String, whereCondiction As String, queryResult As String, ct As T)
-            Authentification(Me.Request)
+        Private Function UpdateAnObject(Of T As {New})(tableName As String, idName As String, whereCondiction As String, queryResult As String, ct As T, Optional trailedID As String = "")
+            Dim pid = Authentification(Me.Request).ToString()
             Dim opres As New OperationResult
             opres.Status = HttpStatusCode.OK
-            Dim myQuery = queryString
+            Dim myQuery = "update " + tableName + " set "
             Dim res As New T
             Dim sqlTran As MySqlTransaction
+            Dim trails As New List(Of String)
+            Dim OldValue = "select columnName from " + tableName + " " + whereCondiction + " limit 1"
             Try
                 Using conn As New MySqlConnection(conMain)
                     conn.Open()
@@ -502,13 +504,22 @@ Namespace Controllers
                             Select Case prop.Name
                                 Case "PasswordHash"
                                     myQuery = myQuery + prop.Name + "='" + MD5Create(value.ToString) + "',"
+                                    Dim trail = "Insert into i_audittrail (AuditTable,TableID,AuditColumn,OldValue,NewValue,ChangedBy,Action) values 
+                                                     ('" + tableName + "'," + trailedID + ",'" + prop.Name + "','',''," & pid & ",'Update');"
+                                    trails.Add(trail)
                                 Case Else
                                     myQuery = myQuery + prop.Name + "='" + value + "',"
+                                    If trailedID <> "" Then
+                                        Dim trail = "Insert into i_audittrail (AuditTable,TableID,AuditColumn,OldValue,NewValue,ChangedBy,Action) values 
+                                                     ('" + tableName + "'," + trailedID + ",'" + prop.Name + "',(" + OldValue.Replace("columnName", prop.Name) + "),'" + value + "'," & pid & ",'Update');"
+                                        trails.Add(trail)
+                                    End If
                             End Select
                         End If
                     Next
                     If myQuery.EndsWith(",") Then myQuery = myQuery.Remove(myQuery.Length - 1)
                     myQuery = myQuery + whereCondiction
+                    If trails.Count > 0 Then myQuery = String.Join("", trails) + myQuery
                     cmd.CommandText = myQuery
                     cmd.Connection = conn
                     cmd.ExecuteNonQuery()
@@ -536,8 +547,8 @@ Namespace Controllers
         End Function
 
 
-        Private Function CreateAnObject(Of T As {New})(insertQuery As String, selectQuery As String)
-            Authentification(Me.Request)
+        Private Function CreateAnObject(Of T As {New})(insertQuery As String, selectQuery As String, Optional audittrailedTables As Dictionary(Of String, String) = Nothing)
+            Dim personid = Authentification(Me.Request).ToString()
             Dim res As New T
             Dim opres As New OperationResult
             opres.Status = HttpStatusCode.OK
@@ -551,6 +562,15 @@ Namespace Controllers
                     cmd.CommandText = insertQuery
                     cmd.Connection = conn
                     cmd.ExecuteNonQuery()
+                    If audittrailedTables IsNot Nothing Then
+                        Dim trailquery = ""
+                        For Each tablename In audittrailedTables.Keys
+                            trailquery = trailquery & "Insert into i_audittrail (AuditTable,TableID,AuditColumn,OldValue,NewValue,ChangedBy,Action) values ('" & tablename & "',( select max(" & audittrailedTables(tablename) & ") from " & tablename & " ) ,'*','','...'," & personid & ",'Create');"
+                        Next
+                        cmd.CommandText = trailquery
+                        cmd.Connection = conn
+                        cmd.ExecuteNonQuery()
+                    End If
                     sqlTran.Commit()
                     cmd.CommandText = selectQuery
                     Dim myReader = cmd.ExecuteReader()
