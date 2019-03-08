@@ -404,6 +404,12 @@ Namespace Controllers
             Return partyID
         End Function
 
+        <HttpGet>
+        <Route("tokentest/{tk}")>
+        Public Function CheckToken(tk As String) As HttpResponseMessage
+            Return GetAnObject(Of CheckToken)("SELECT if(count(*) = 0, false, true) as isvalid FROM o_functiontoken where token= '" & tk & "' and  DATE_ADD(datecreated, INTERVAL 2 day) >= now() limit 1")
+        End Function
+
         Private Function Authentification(rq As Http.HttpRequestMessage) As Boolean
             If rq.Headers.Contains("Authorization") Then
                 Dim authkey = Request.Headers.GetValues("Authorization").First
@@ -416,10 +422,11 @@ Namespace Controllers
                         While myReader.Read()
                             Return True
                         End While
-                        Return False
+                        Throw New HttpResponseException(HttpStatusCode.Unauthorized)
                     End Using
                 End Using
             Else
+                Throw New HttpResponseException(HttpStatusCode.Unauthorized)
                 Return False
             End If
         End Function

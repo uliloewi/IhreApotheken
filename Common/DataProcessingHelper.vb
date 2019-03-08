@@ -20,9 +20,11 @@ Public Module DataProccessingHelper
             If specialProp IsNot Nothing AndAlso specialProp.ContainsKey(prop.Name) Then
                 colName = specialProp(prop.Name)
             End If
-            If Enumerable.Range(0, myreader.FieldCount).Any(Function(i) myreader.GetName(i) = colName) AndAlso Not IsDBNull(myreader(colName)) Then
+            If Enumerable.Range(0, myreader.FieldCount).Any(Function(i) myreader.GetName(i).ToLower = colName.ToLower) AndAlso Not IsDBNull(myreader(colName)) Then
                 If prop.PropertyType Is GetType(String) Then
-                    prop.SetValue(o, myreader(colName).ToString) 'ToDo ApothekenID_old = ApothekenID
+                    prop.SetValue(o, myreader(colName).ToString)
+                ElseIf prop.PropertyType Is GetType(Boolean) Then
+                    prop.SetValue(o, CType(myreader(colName), Boolean))
                 Else
                     prop.SetValue(o, myreader(colName))
                 End If
