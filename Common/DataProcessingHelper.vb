@@ -21,7 +21,9 @@ Public Module DataProccessingHelper
                 colName = specialProp(prop.Name)
             End If
             If Enumerable.Range(0, myreader.FieldCount).Any(Function(i) myreader.GetName(i).ToLower = colName.ToLower) AndAlso Not IsDBNull(myreader(colName)) Then
-                If prop.PropertyType Is GetType(String) Then
+                If colName = "OrderDate" Then
+                    prop.SetValue(o, DateTime.Parse(myreader(colName).ToString).ToString("dd\.MM\.yyyy HH:mm"))
+                ElseIf prop.PropertyType Is GetType(String) Then
                     prop.SetValue(o, myreader(colName).ToString)
                 ElseIf prop.PropertyType Is GetType(Boolean) Then
                     prop.SetValue(o, CType(myreader(colName), Boolean))

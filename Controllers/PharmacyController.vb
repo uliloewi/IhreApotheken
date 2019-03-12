@@ -1,4 +1,5 @@
-﻿Imports System.Net
+﻿Imports System.Globalization
+Imports System.Net
 Imports System.Net.Http
 Imports System.Web.Http
 Imports System.Web.Http.Cors
@@ -191,7 +192,8 @@ Namespace Controllers
                 While myReader.Read()
                     Dim arte As Artefact = artefactList.Where(Function(a) a.OrderArtefactID = myReader("OrderArtefactID")).FirstOrDefault
                     If arte Is Nothing Then
-                        arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID"), .AssociationDate = myReader("AssociationDate").ToString.Substring(0, 16)}
+                        arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID"),
+                            .AssociationDate = DateTime.Parse(myReader("AssociationDate").ToString).ToString("dd\.MM\.yyyy HH:mm")}
                         artefactList.Add(arte)
                     End If
                     For Each prop In arte.GetType.GetProperties
@@ -257,7 +259,8 @@ Namespace Controllers
                             While myReader.Read()
                                 Dim arte As Artefact = artefactList.Where(Function(a) a.OrderArtefactID = myReader("OrderArtefactID")).FirstOrDefault
                                 If arte Is Nothing Then
-                                    arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID"), .AssociationDate = myReader("AssociationDate").ToString.Substring(0, 16)}
+                                    arte = New Artefact With {.OrderArtefactID = myReader("OrderArtefactID"),
+                                        .AssociationDate = DateTime.Parse(myReader("AssociationDate").ToString).ToString("dd\.MM\.yyyy HH:mm")}
                                     artefactList.Add(arte)
                                 End If
                                 For Each prop In arte.GetType.GetProperties
